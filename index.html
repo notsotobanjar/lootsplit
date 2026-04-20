@@ -109,7 +109,7 @@ function formatInput(el) {
   el.value = raw ? Number(raw).toLocaleString("en-US") : "";
 }
 
-// format on blur only (no typing bugs)
+// format on blur only
 document.addEventListener("blur", (e) => {
   if (e.target.tagName === "INPUT" && e.target.type !== "checkbox") {
     formatInput(e.target);
@@ -132,11 +132,11 @@ function addMember(isCaller = false) {
     <input class="name" placeholder="${isCaller ? "Caller" : "Member"}" value="${isCaller ? "Caller" : ""}">
 
     <div>
-      <label><input type="checkbox" class="percent"> %</label>
+      <label><input type="checkbox" class="percent" checked> %</label>
       <label><input type="checkbox" class="fixed"> Fixed</label>
     </div>
 
-    <input class="value" placeholder="Value">
+    <input class="value" value="100">
 
     <div>
       <label><input type="checkbox" class="both" checked> Both</label>
@@ -145,17 +145,15 @@ function addMember(isCaller = false) {
     </div>
   `;
 
-  // enforce exclusive behavior
+  // exclusive logic
   const percent = div.querySelector(".percent");
   const fixed = div.querySelector(".fixed");
-
   percent.onclick = () => exclusive([percent, fixed], percent);
   fixed.onclick = () => exclusive([percent, fixed], fixed);
 
   const both = div.querySelector(".both");
   const item = div.querySelector(".item");
   const silver = div.querySelector(".silver");
-
   both.onclick = () => exclusive([both, item, silver], both);
   item.onclick = () => exclusive([both, item, silver], item);
   silver.onclick = () => exclusive([both, item, silver], silver);
@@ -163,11 +161,8 @@ function addMember(isCaller = false) {
   document.getElementById("members").appendChild(div);
 }
 
-// ---------- AUTO ADD CALLER ----------
-addMember(true);
-
-// ---------- LIVE CALC ----------
-document.addEventListener("input", () => calculate());
+// ---------- INIT ----------
+addMember(true); // first = caller
 
 // ---------- CALC ----------
 function calculate() {
@@ -200,8 +195,8 @@ function calculate() {
   let silverCustom = 0;
   let results = [];
 
-  members.forEach(m => {
-    let name = m.querySelector(".name").value || "Member";
+  members.forEach((m, index) => {
+    let name = m.querySelector(".name").value || (index === 0 ? "Caller" : "Member");
 
     let percent = m.querySelector(".percent").checked;
     let fixed = m.querySelector(".fixed").checked;
@@ -269,8 +264,8 @@ function calculate() {
     out += `${r.name} → ${Math.round(r.total).toLocaleString()} (Item ${Math.round(r.item).toLocaleString()} | Silver ${Math.round(r.silver).toLocaleString()})\n`;
   });
 
-  out += `\nCaller → ${Math.round(callerItem + callerSilver).toLocaleString()}\n`;
-  out += `General → ${Math.round(generalItem + generalSilver).toLocaleString()}\n`;
+  out += `\nCaller (+10%) included above\n`;
+  out += `General Member → ${Math.round(generalItem + generalSilver).toLocaleString()}\n`;
 
   resultEl.innerText = out;
 }
