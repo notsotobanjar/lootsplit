@@ -100,18 +100,76 @@
 <script>
 // ---------- PARSE ----------
 function parseNumber(value) {
-  return Number((value || "").replace(/,/g, "")) || 0;
+  return Number((value || "").replace(/[^\d]/g, "")) || 0;
 }
 
-// ---------- FORMAT ON BLUR ----------
+// ---------- FORMAT ----------
+function formatInput(el) {
+  let raw = el.value.replace(/[^\d]/g, "");
+  el.value = raw ? Number(raw).toLocaleString("en-US") : "";
+}
+
+// format on blur only (no typing bugs)
 document.addEventListener("blur", (e) => {
   if (e.target.tagName === "INPUT" && e.target.type !== "checkbox") {
-    let num = parseNumber(e.target.value);
-    if (num > 0) e.target.value = num.toLocaleString();
+    formatInput(e.target);
   }
 }, true);
 
-// ---------- CALCULATE ----------
+// ---------- EXCLUSIVE CHECKBOX ----------
+function exclusive(group, current) {
+  group.forEach(el => {
+    if (el !== current) el.checked = false;
+  });
+}
+
+// ---------- ADD MEMBER ----------
+function addMember(isCaller = false) {
+  const div = document.createElement("div");
+  div.className = "member";
+
+  div.innerHTML = `
+    <input class="name" placeholder="${isCaller ? "Caller" : "Member"}" value="${isCaller ? "Caller" : ""}">
+
+    <div>
+      <label><input type="checkbox" class="percent"> %</label>
+      <label><input type="checkbox" class="fixed"> Fixed</label>
+    </div>
+
+    <input class="value" placeholder="Value">
+
+    <div>
+      <label><input type="checkbox" class="both" checked> Both</label>
+      <label><input type="checkbox" class="item"> Item</label>
+      <label><input type="checkbox" class="silver"> Silver</label>
+    </div>
+  `;
+
+  // enforce exclusive behavior
+  const percent = div.querySelector(".percent");
+  const fixed = div.querySelector(".fixed");
+
+  percent.onclick = () => exclusive([percent, fixed], percent);
+  fixed.onclick = () => exclusive([percent, fixed], fixed);
+
+  const both = div.querySelector(".both");
+  const item = div.querySelector(".item");
+  const silver = div.querySelector(".silver");
+
+  both.onclick = () => exclusive([both, item, silver], both);
+  item.onclick = () => exclusive([both, item, silver], item);
+  silver.onclick = () => exclusive([both, item, silver], silver);
+
+  document.getElementById("members").appendChild(div);
+}
+
+// ---------- AUTO ADD CALLER ----------
+addMember(true);
+
+// ---------- LIVE CALC ----------
+document.addEventListener("input", () => calculate());
+
+// ---------- CALC ----------
 function calculate() {
   let itemLoot = parseNumber(itemLootEl.value);
   let discount = parseNumber(discountEl.value);
@@ -124,44 +182,41 @@ function calculate() {
   let sold = soldEl.checked;
 
   // --- POOLS ---
-  let itemPool = itemLoot * (discount > 0 ? (1 - discount / 100) : 1);
+  let itemPool = itemLoot * (discount ? (1 - discount / 100) : 1);
   let silverPool = (bag10k * 10000) + (bag1k * 1000) - repair;
   if (silverPool < 0) silverPool = 0;
 
-  // --- SOLD = ALL SILVER ---
   if (sold) {
     silverPool += itemPool;
     itemPool = 0;
   }
 
   let totalLoot = itemPool + silverPool;
-
   let baseShare = split > 0 ? totalLoot / split : 0;
 
   let members = document.querySelectorAll(".member");
 
   let itemCustom = 0;
   let silverCustom = 0;
-
   let results = [];
 
   members.forEach(m => {
     let name = m.querySelector(".name").value || "Member";
 
-    let percent = m.querySelector(".percentCheck").checked;
-    let fixed = m.querySelector(".fixedCheck").checked;
+    let percent = m.querySelector(".percent").checked;
+    let fixed = m.querySelector(".fixed").checked;
     let value = parseNumber(m.querySelector(".value").value);
 
-    let itemOnly = m.querySelector(".itemOnly").checked;
-    let silverOnly = m.querySelector(".silverOnly").checked;
     let both = m.querySelector(".both").checked;
+    let itemOnly = m.querySelector(".item").checked;
+    let silverOnly = m.querySelector(".silver").checked;
 
     let share = percent ? baseShare * (value / 100) : fixed ? value : 0;
 
     let itemShare = 0;
     let silverShare = 0;
 
-    if (both || (!itemOnly && !silverOnly)) {
+    if (both) {
       itemShare = share * (itemPool / totalLoot || 0);
       silverShare = share * (silverPool / totalLoot || 0);
     } else if (itemOnly) {
@@ -211,14 +266,13 @@ function calculate() {
   out += `Total Loot: ${Math.round(totalLoot).toLocaleString()}\n\n`;
 
   results.forEach(r => {
-    out += `${r.name} → ${Math.round(r.total).toLocaleString()} (Item: ${Math.round(r.item).toLocaleString()} | Silver: ${Math.round(r.silver).toLocaleString()})\n`;
+    out += `${r.name} → ${Math.round(r.total).toLocaleString()} (Item ${Math.round(r.item).toLocaleString()} | Silver ${Math.round(r.silver).toLocaleString()})\n`;
   });
 
-  out += `\nCaller → ${Math.round(callerItem + callerSilver).toLocaleString()} (Item: ${Math.round(callerItem).toLocaleString()} | Silver: ${Math.round(callerSilver).toLocaleString()})\n`;
+  out += `\nCaller → ${Math.round(callerItem + callerSilver).toLocaleString()}\n`;
+  out += `General → ${Math.round(generalItem + generalSilver).toLocaleString()}\n`;
 
-  out += `General Member → ${Math.round(generalItem + generalSilver).toLocaleString()} (Item: ${Math.round(generalItem).toLocaleString()} | Silver: ${Math.round(generalSilver).toLocaleString()})\n`;
-
-  result.innerText = out;
+  resultEl.innerText = out;
 }
 
 // ---------- SHORTCUTS ----------
@@ -229,7 +283,7 @@ const bag1kEl = document.getElementById("bag1k");
 const repairEl = document.getElementById("repair");
 const splitEl = document.getElementById("split");
 const soldEl = document.getElementById("sold");
-const result = document.getElementById("result");
+const resultEl = document.getElementById("result");
 </script>
 
 </body>
