@@ -1,72 +1,154 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Loot Calculator</title>
+  <title>Loot Split Calculator</title>
   <style>
-    body { font-family: Arial; padding: 20px; max-width: 700px; margin: auto; }
-    input, select { margin: 5px; padding: 5px; }
-    .member { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h2, h3 { margin-top: 20px; }
+
+    input {
+      padding: 8px;
+      margin: 5px;
+      border-radius: 6px;
+      border: none;
+      width: 150px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .member {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 10px;
+      margin: 8px 0;
+    }
+
+    button {
+      padding: 10px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #22c55e;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    label {
+      margin-right: 10px;
+    }
+
+    .checkbox-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    pre {
+      background: #020617;
+      padding: 10px;
+      border-radius: 10px;
+    }
   </style>
 </head>
 <body>
 
-<h2>Loot Calculator</h2>
+<h2>Loot Split Calculator</h2>
 
 <h3>Loot Input</h3>
-<input id="itemLoot" placeholder="Total Item Loot"><br>
-<input id="discount" placeholder="Discount %"><br>
 
-<input id="bag10k" placeholder="10k bags"><br>
-<input id="bag1k" placeholder="1k bags"><br>
-<input id="repair" placeholder="Repair cost"><br>
+<div class="row">
+  <input id="itemLoot" placeholder="Item Loot">
+  <input id="discount" placeholder="Discount %">
+</div>
 
-<label><input type="checkbox" id="sold"> Loot Sold</label><br>
+<div class="row">
+  <input id="bag10k" placeholder="10k Bags">
+  <input id="bag1k" placeholder="1k Bags">
+  <input id="repair" placeholder="Repair">
+</div>
 
-<input id="split" placeholder="Split amount"><br>
+<label>
+  <input type="checkbox" id="sold"> Loot Sold (All Silver)
+</label>
+
+<br>
+<input id="split" placeholder="Split Amount">
 
 <h3>Custom Members</h3>
 <div id="members"></div>
-<button onclick="addMember()">Add Member</button>
 
-<br><br>
+<button onclick="addMember()">+ Add Member</button>
+<br>
 <button onclick="calculate()">Calculate</button>
 
 <h3>Result</h3>
 <pre id="result"></pre>
 
 <script>
+// FORMAT NUMBER INPUT (1,000,000)
+function formatNumber(value) {
+  value = value.replace(/,/g, '');
+  if (value === '') return '';
+  return Number(value).toLocaleString();
+}
+
+function parseNumber(value) {
+  return Number(value.replace(/,/g, '')) || 0;
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target.tagName === "INPUT" && e.target.type !== "checkbox") {
+    let cursor = e.target.selectionStart;
+    e.target.value = formatNumber(e.target.value);
+  }
+});
+
 function addMember() {
   const div = document.createElement("div");
   div.className = "member";
 
   div.innerHTML = `
-    Name: <input class="name"><br>
-    Type:
-    <select class="type">
-      <option value="percent">Percent</option>
-      <option value="fixed">Fixed</option>
-    </select><br>
-    Value: <input class="value"><br>
-    Loot Type:
-    <select class="lootType">
-      <option value="both">Both</option>
-      <option value="item">Item Only</option>
-      <option value="silver">Silver Only</option>
-    </select>
+    <input class="name" placeholder="Name">
+
+    <div class="checkbox-group">
+      <label><input type="checkbox" class="percentCheck"> %</label>
+      <label><input type="checkbox" class="fixedCheck"> Fixed</label>
+    </div>
+
+    <input class="value" placeholder="Value">
+
+    <div class="checkbox-group">
+      <label><input type="checkbox" class="itemOnly"> Item</label>
+      <label><input type="checkbox" class="silverOnly"> Silver</label>
+      <label><input type="checkbox" class="both" checked> Both</label>
+    </div>
   `;
 
   document.getElementById("members").appendChild(div);
 }
 
 function calculate() {
-  let itemLoot = Number(document.getElementById("itemLoot").value);
-  let discount = Number(document.getElementById("discount").value) / 100;
+  let itemLoot = parseNumber(document.getElementById("itemLoot").value);
+  let discount = parseNumber(document.getElementById("discount").value) / 100;
 
-  let bag10k = Number(document.getElementById("bag10k").value);
-  let bag1k = Number(document.getElementById("bag1k").value);
-  let repair = Number(document.getElementById("repair").value);
+  let bag10k = parseNumber(document.getElementById("bag10k").value);
+  let bag1k = parseNumber(document.getElementById("bag1k").value);
+  let repair = parseNumber(document.getElementById("repair").value);
 
-  let split = Number(document.getElementById("split").value);
+  let split = parseNumber(document.getElementById("split").value);
   let sold = document.getElementById("sold").checked;
 
   let itemPrice = itemLoot * (1 - discount);
@@ -83,24 +165,24 @@ function calculate() {
 
   members.forEach(m => {
     let name = m.querySelector(".name").value || "Member";
-    let type = m.querySelector(".type").value;
-    let value = Number(m.querySelector(".value").value);
+
+    let percent = m.querySelector(".percentCheck").checked;
+    let fixed = m.querySelector(".fixedCheck").checked;
+    let value = parseNumber(m.querySelector(".value").value);
 
     let share = 0;
 
-    if (type === "percent") {
+    if (percent) {
       share = baseShare * (value / 100);
-    } else {
+    } else if (fixed) {
       share = value;
     }
 
     totalCustom += share;
-
     results.push({ name, share });
   });
 
   let remainingPool = totalLoot - totalCustom;
-
   let remainingMembers = split - members.length;
 
   let callerShare = (remainingPool / remainingMembers) * 1.1;
@@ -113,11 +195,11 @@ function calculate() {
   let output = "";
 
   results.forEach(r => {
-    output += `${r.name}: ${Math.round(r.share)}\n`;
+    output += `${r.name}: ${Math.round(r.share).toLocaleString()}\n`;
   });
 
-  output += `\nCaller: ${Math.round(callerShare)}\n`;
-  output += `General Member: ${Math.round(generalShare)}\n`;
+  output += `\nCaller: ${Math.round(callerShare).toLocaleString()}\n`;
+  output += `General Member: ${Math.round(generalShare).toLocaleString()}\n`;
 
   document.getElementById("result").innerText = output;
 }
