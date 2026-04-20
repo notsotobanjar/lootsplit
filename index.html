@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Loot Calculator</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 700px; margin: auto; }
+    input, select { margin: 5px; padding: 5px; }
+    .member { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+  </style>
+</head>
+<body>
+
+<h2>Loot Calculator</h2>
+
+<h3>Loot Input</h3>
+<input id="itemLoot" placeholder="Total Item Loot"><br>
+<input id="discount" placeholder="Discount %"><br>
+
+<input id="bag10k" placeholder="10k bags"><br>
+<input id="bag1k" placeholder="1k bags"><br>
+<input id="repair" placeholder="Repair cost"><br>
+
+<label><input type="checkbox" id="sold"> Loot Sold</label><br>
+
+<input id="split" placeholder="Split amount"><br>
+
+<h3>Custom Members</h3>
+<div id="members"></div>
+<button onclick="addMember()">Add Member</button>
+
+<br><br>
+<button onclick="calculate()">Calculate</button>
+
+<h3>Result</h3>
+<pre id="result"></pre>
+
+<script>
+function addMember() {
+  const div = document.createElement("div");
+  div.className = "member";
+
+  div.innerHTML = `
+    Name: <input class="name"><br>
+    Type:
+    <select class="type">
+      <option value="percent">Percent</option>
+      <option value="fixed">Fixed</option>
+    </select><br>
+    Value: <input class="value"><br>
+    Loot Type:
+    <select class="lootType">
+      <option value="both">Both</option>
+      <option value="item">Item Only</option>
+      <option value="silver">Silver Only</option>
+    </select>
+  `;
+
+  document.getElementById("members").appendChild(div);
+}
+
+function calculate() {
+  let itemLoot = Number(document.getElementById("itemLoot").value);
+  let discount = Number(document.getElementById("discount").value) / 100;
+
+  let bag10k = Number(document.getElementById("bag10k").value);
+  let bag1k = Number(document.getElementById("bag1k").value);
+  let repair = Number(document.getElementById("repair").value);
+
+  let split = Number(document.getElementById("split").value);
+  let sold = document.getElementById("sold").checked;
+
+  let itemPrice = itemLoot * (1 - discount);
+  let totalSilver = (bag10k * 10000) + (bag1k * 1000);
+  let silverRemain = totalSilver - repair;
+
+  let totalLoot = itemPrice + silverRemain;
+  let baseShare = totalLoot / split;
+
+  let members = document.querySelectorAll(".member");
+
+  let totalCustom = 0;
+  let results = [];
+
+  members.forEach(m => {
+    let name = m.querySelector(".name").value || "Member";
+    let type = m.querySelector(".type").value;
+    let value = Number(m.querySelector(".value").value);
+
+    let share = 0;
+
+    if (type === "percent") {
+      share = baseShare * (value / 100);
+    } else {
+      share = value;
+    }
+
+    totalCustom += share;
+
+    results.push({ name, share });
+  });
+
+  let remainingPool = totalLoot - totalCustom;
+
+  let remainingMembers = split - members.length;
+
+  let callerShare = (remainingPool / remainingMembers) * 1.1;
+
+  let remainingAfterCaller = remainingPool - callerShare;
+  let generalMembers = remainingMembers - 1;
+
+  let generalShare = generalMembers > 0 ? remainingAfterCaller / generalMembers : 0;
+
+  let output = "";
+
+  results.forEach(r => {
+    output += `${r.name}: ${Math.round(r.share)}\n`;
+  });
+
+  output += `\nCaller: ${Math.round(callerShare)}\n`;
+  output += `General Member: ${Math.round(generalShare)}\n`;
+
+  document.getElementById("result").innerText = output;
+}
+</script>
+
+</body>
+</html>
